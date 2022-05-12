@@ -44,8 +44,8 @@ func validInputDay(input string) (int, error) {
 		log.Println("error converting input string to int: ", err)
 		return 0, err
 	}
-	if inputDay < 0 {
-		err = errors.New("number less than cero")
+	if inputDay < 1 {
+		err = errors.New("number must be more than zero")
 		return 0, err
 	}
 	return inputDay, nil
