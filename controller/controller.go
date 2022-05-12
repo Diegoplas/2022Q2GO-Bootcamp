@@ -1,10 +1,11 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"time"
+	"strconv"
 
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/config"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/csvdata"
@@ -14,14 +15,16 @@ import (
 )
 
 func GraphBTCValues(w http.ResponseWriter, r *http.Request) {
-	requestedDate := mux.Vars(r)["date"]
-	if !validInputDate(requestedDate) {
+	requestedDay := mux.Vars(r)["day"]
+	fmt.Println(requestedDay)
+	inputDay, err := validInputDay(requestedDay)
+	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Date format must: YYYY-MM-DD (hyphens included)"))
+		w.Write([]byte("Please insert a valid positive number."))
 		return
 	}
 	BTCRecords := model.CryptoValueRecords{}
-	BTCRecords, minValue, maxValue, err := csvdata.ExtractFromCSV(requestedDate)
+	BTCRecords, minValue, maxValue, err := csvdata.ExtractFromCSV(inputDay)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
@@ -34,12 +37,16 @@ func GraphBTCValues(w http.ResponseWriter, r *http.Request) {
 }
 
 // Format must be YYYY-MM-DD
-func validInputDate(inputDate string) bool {
-	defaultDateFormat := "2006-01-02"
-	_, err := time.Parse(defaultDateFormat, inputDate)
+func validInputDay(input string) (int, error) {
+	fmt.Println(input)
+	inputDay, err := strconv.Atoi(input)
 	if err != nil {
-		log.Println("Error, input date:", err)
-		return false
+		log.Println("error converting input string to int: ", err)
+		return 0, err
 	}
-	return true
+	if inputDay < 0 {
+		err = errors.New("number less than cero")
+		return 0, err
+	}
+	return inputDay, nil
 }

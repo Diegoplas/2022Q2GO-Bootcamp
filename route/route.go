@@ -9,6 +9,6 @@ import (
 
 func GetRouter() (router *mux.Router) {
 	router = mux.NewRouter()
-	router.HandleFunc("/btc-values/{date}", controller.GraphBTCValues).Methods(http.MethodGet)
+	router.HandleFunc("/btc-values/{day}", controller.GraphBTCValues).Methods(http.MethodGet)
 	return router
 }
