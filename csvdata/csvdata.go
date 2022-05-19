@@ -11,6 +11,7 @@ import (
 
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/config"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/model"
+
 	"github.com/wcharczuk/go-chart"
 )
 

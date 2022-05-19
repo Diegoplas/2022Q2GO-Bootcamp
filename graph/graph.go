@@ -7,10 +7,12 @@ import (
 
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/config"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/model"
+
 	chart "github.com/wcharczuk/go-chart/v2"
 	"github.com/wcharczuk/go-chart/v2/drawing"
 )
 
+// MakeGraph - Generates the graph with the values/dates and saves it as an image.
 func MakeGraph(records model.CryptoValueRecords, minValue, maxValue float64) {
 	priceSeries := chart.TimeSeries{
 		Name: "SPY",

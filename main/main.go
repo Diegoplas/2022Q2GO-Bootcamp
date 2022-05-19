@@ -7,10 +7,10 @@ import (
 
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/config"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/route"
+
 	"github.com/gorilla/handlers"
 )
 
-//go:generate go run main.go
 const (
 	welcomeString = `:::::::: BTC-USD Data Grapher ::::::::
 ::::::::::::::::::::::::::::::::::::::

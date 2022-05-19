@@ -11,9 +11,11 @@ import (
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/csvdata"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/graph"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/model"
+
 	"github.com/gorilla/mux"
 )
 
+// GraphBTCValues - Gets the historic data from the CSV file and graph of it.
 func GraphBTCValues(w http.ResponseWriter, r *http.Request) {
 	requestedDay := mux.Vars(r)["day"]
 	fmt.Println(requestedDay)
@@ -36,7 +38,7 @@ func GraphBTCValues(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// Format must be YYYY-MM-DD
+// validInputDay - Validates the input is a valid positiv number.
 func validInputDay(input string) (int, error) {
 	fmt.Println(input)
 	inputDay, err := strconv.Atoi(input)
