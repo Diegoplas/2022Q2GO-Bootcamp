@@ -42,14 +42,9 @@ func ExtractRowsFromCSVFile() (rows [][]string) {
 	fmt.Println("Successfully Opened CSV file")
 	defer csvFile.Close()
 
-	csvReader, err := csv.NewReader(csvFile).ReadAll()
+	CSVRows, err := csv.NewReader(csvFile).ReadAll()
 	if err != nil {
 		log.Println("Error reading CSV data: ", err)
 	}
-	fmt.Println(csvReader)
-	fmt.Println("READY TO PRINT ALL THE CRYPTOSSSS::::")
-	for _, record := range csvReader {
-		fmt.Println(record)
-	}
-	return csvReader
+	return CSVRows
 }

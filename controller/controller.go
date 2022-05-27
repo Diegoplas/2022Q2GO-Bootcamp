@@ -20,7 +20,7 @@ func GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
 	// }
 	name := mux.Vars(r)["cryptoName"]
 	fmt.Println(name)
-	csvdata.ExtractRowsFromCSVFile()
+	rows := csvdata.ExtractRowsFromCSVFile()
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("Data successfully graphed in file: %s", config.PNGFileName)))
 	//// ADD VALIDATION FOR INPUT
@@ -72,3 +72,12 @@ func GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
 // 	}
 // 	return inputDay, nil
 // }
+
+//validateInputCryptoName - Validates the input crypto name is contained in the available cryptos.
+func validateInputCryptoName(input string, cryptoNameRows [][]string) bool {
+	lenRows := cryptoNameRows
+	for idx := 1; idx < lenRows; idx++ {
+
+	}
+	return inputDay
+}
