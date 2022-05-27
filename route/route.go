@@ -10,6 +10,6 @@ import (
 
 func GetRouter() (router *mux.Router) {
 	router = mux.NewRouter()
-	router.HandleFunc("/usd-conversion/{cryptoName}", controller.GraphCryptoRecords).Methods(http.MethodGet)
+	router.HandleFunc("/usd-crypto-conversion/{cryptoName}/{days}", controller.GraphCryptoRecords).Methods(http.MethodGet)
 	return router
 }
