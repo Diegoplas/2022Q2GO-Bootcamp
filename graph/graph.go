@@ -3,6 +3,7 @@ package graph
 //go:generate go run main.go
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/config"
@@ -13,14 +14,15 @@ import (
 )
 
 // MakeGraph - Generates the graph with the values/dates and saves it as an image.
-func MakeGraph(records model.CryptoRecordValues, minValue, maxValue float64) {
+func MakeGraph(records model.CryptoRecordValues, minValue, maxValue float64, cryptoCode, days string) string {
+	graphFileName := fmt.Sprintf("historical-usd-%s-%s-days-graph.png", cryptoCode, days)
 	priceSeries := chart.TimeSeries{
 		Name: "SPY",
 		Style: chart.Style{
 			StrokeColor: chart.GetDefaultColor(0),
 		},
 		XValues: records.Dates,
-		YValues: records.Values,
+		YValues: records.AveragePrice,
 	}
 
 	smaSeries := chart.SMASeries{
@@ -42,14 +44,15 @@ func MakeGraph(records model.CryptoRecordValues, minValue, maxValue float64) {
 	}
 
 	graph := chart.Chart{
-		Title: "BTC-USD Price History ",
+		Title: fmt.Sprintf("USD-%s Average Price History of the last %s Days", cryptoCode, days),
 		XAxis: chart.XAxis{
 			TickPosition: chart.TickPositionBetweenTicks,
 		},
 		YAxis: chart.YAxis{
 			Range: &chart.ContinuousRange{
-				Max: maxValue + 1000.0,
-				Min: minValue - 1000.0,
+				//Values added just to have a better display of the graph/title
+				Max: maxValue + config.GraphTopSpace,
+				Min: minValue - config.GraphBottomSpace,
 			},
 		},
 		Series: []chart.Series{
@@ -59,7 +62,8 @@ func MakeGraph(records model.CryptoRecordValues, minValue, maxValue float64) {
 		},
 	}
 
-	f, _ := os.Create(config.PNGFileName)
+	f, _ := os.Create(graphFileName)
 	defer f.Close()
 	graph.Render(chart.PNG, f)
+	return graphFileName
 }
