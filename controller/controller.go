@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -16,15 +15,18 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// GraphCryptoRecords - Gets the historic data from the CSV file and graph of it.
+// GraphCryptoRecords - Gets the historic data from http request, save it into a CSV file and graph of it.
 func GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
-	APIKey := os.Getenv("KEY") // try viper
-	if APIKey == "" {
+	// Load config variables
+	configVars, err := config.LoadConfig(".")
+	if err != nil {
+		log.Println("cannot load config:", err)
+	}
+	if configVars.APIKey == "" {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("Please introduce global API Key"))
+		w.Write([]byte("Please introduce use a valid API Key"))
 		return
 	}
-	//APIKey := "9Q7QO3NG2P2M4QBU"
 	// Validate Input Crypto Code
 	rawInputCryptoCode := mux.Vars(r)["cryptoCode"]
 	cryptoCodesRows, err := csvdata.ExtractRowsFromCSVFile(config.CryptoNamesList)
@@ -47,11 +49,9 @@ func GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(string(err.Error())))
 		return
 	}
-	log.Println("DAYSK:: ", inputDays)
 	// Get data from request
 	requestURL := fmt.Sprintf("https://www.alphavantage.co/query?function=DIGITAL_CURRENCY_DAILY&symbol=%s&market=%s&apikey=%s&datatype=csv",
-		cryptoCode, config.Market, APIKey)
-	log.Println("GETTING DATA:: ")
+		cryptoCode, config.Market, configVars.APIKey)
 	// Get the data
 	response, err := cryptoHystoricalValuesRequest(requestURL)
 	if err != nil {
@@ -84,6 +84,7 @@ func GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(fmt.Sprintf("Data successfully graphed in file: %s", graphName)))
 }
 
+// cryptoHystoricalValuesRequest - make http request.
 func cryptoHystoricalValuesRequest(reqUrl string) (resp *http.Response, err error) {
 	resp, err = http.Get(reqUrl)
 	if err != nil {

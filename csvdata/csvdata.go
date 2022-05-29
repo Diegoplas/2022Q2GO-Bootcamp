@@ -32,6 +32,7 @@ func createCSVFile() error {
 	return nil
 }
 
+// CopyResponseToCSVFile - copy the response body of a request to just created CSV file.
 func CopyResponseToCSVFile(resp *http.Response) error {
 	// Writer the body to file
 	err := createCSVFile()
@@ -53,6 +54,7 @@ func CopyResponseToCSVFile(resp *http.Response) error {
 	return nil
 }
 
+// ExtractRowsFromCSVFile - Reads the rows of a CSV File and returns a 2D array (row and columns)
 func ExtractRowsFromCSVFile(csvFileName string) (rows [][]string, err error) {
 	csvFile, err := os.Open(csvFileName)
 	if err != nil {
@@ -69,6 +71,7 @@ func ExtractRowsFromCSVFile(csvFileName string) (rows [][]string, err error) {
 	return CSVRows, nil
 }
 
+// GetDataFromHistoricalValueRows - Convert the data extracted from the CSV to their corresponding types, store them and get the Min and Max price values.
 func GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]string) (records model.CryptoRecordValues, minValue, maxValue float64, dataError error) {
 	cryptoRecords := model.CryptoRecordValues{}
 	// Default values for obtaining the max and the min values (for graph use).
@@ -98,6 +101,7 @@ func GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]s
 	return cryptoRecords, minValue, maxValue, nil
 }
 
+// averageHighLowCryptoPrices - Returns the average of the low and high price of the crypto currency.
 func averageHighLowCryptoPrices(lowPrice, highPrice string) (float64, error) {
 	lowP, err := strconv.ParseFloat(lowPrice, 64)
 	if err != nil {
@@ -113,6 +117,7 @@ func averageHighLowCryptoPrices(lowPrice, highPrice string) (float64, error) {
 	return averagePrice, nil
 }
 
+// convertCSVStrToDate - Convert string date to time.Time type
 func convertCSVStrToDate(strDate string) (time.Time, error) {
 	date, err := time.Parse(chart.DefaultDateFormat, strDate)
 	if err != nil {

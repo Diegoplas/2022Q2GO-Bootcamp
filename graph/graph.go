@@ -51,8 +51,8 @@ func MakeGraph(records model.CryptoRecordValues, minValue, maxValue float64, cry
 		YAxis: chart.YAxis{
 			Range: &chart.ContinuousRange{
 				//Values added just to have a better display of the graph/title
-				Max: maxValue + config.GraphTopSpace,
-				Min: minValue - config.GraphBottomSpace,
+				Max: maxValue + config.GraphTopBottomSpace,
+				Min: minValue - config.GraphTopBottomSpace,
 			},
 		},
 		Series: []chart.Series{
