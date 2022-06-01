@@ -9,14 +9,41 @@ import (
 	"strings"
 
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/config"
-	"github.com/Diegoplas/2022Q2GO-Bootcamp/csvdata"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/graph"
+	"github.com/Diegoplas/2022Q2GO-Bootcamp/model"
 
 	"github.com/gorilla/mux"
 )
 
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+var (
+	Client HTTPClient
+)
+
+func init() {
+	Client = &http.Client{}
+}
+
+type DataGetter interface {
+	CreateCSVFile() error
+	CopyResponseToCSVFile(resp *http.Response) error
+	ExtractRowsFromCSVFile(csvFileName string) (rows [][]string, err error)
+	GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]string) (records model.CryptoRecordValues, dataError error)
+}
+
+type DataHandler struct {
+	getter DataGetter
+}
+
+func NewDataGetter(getter DataGetter) DataHandler {
+	return DataHandler{getter: getter}
+}
+
 // GraphCryptoRecords - Gets the historic data from http request, save it into a CSV file and graph of it.
-func GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
+func (dh DataHandler) GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
 	// Load config variables
 	configVars, err := config.LoadConfig(".")
 	if err != nil {
@@ -29,7 +56,7 @@ func GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
 	}
 	// Validate Input Crypto Code
 	rawInputCryptoCode := mux.Vars(r)["cryptoCode"]
-	cryptoCodesRows, err := csvdata.ExtractRowsFromCSVFile(config.CryptoNamesList)
+	cryptoCodesRows, err := dh.getter.ExtractRowsFromCSVFile(config.CryptoNamesListPath)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(string(err.Error())))
@@ -59,7 +86,7 @@ func GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(string(err.Error())))
 		return
 	}
-	err = csvdata.CopyResponseToCSVFile(response)
+	err = dh.getter.CopyResponseToCSVFile(response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(string(err.Error())))
@@ -67,31 +94,39 @@ func GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use historical values data
-	extractedHistoricalValuesRows, err := csvdata.ExtractRowsFromCSVFile(config.HistoricalValuesCSVPath)
+	extractedHistoricalValuesRows, err := dh.getter.ExtractRowsFromCSVFile(config.HistoricalValuesCSVPath)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(string(err.Error())))
 		return
 	}
-	historicalValues, minPrice, maxPrice, err := csvdata.GetDataFromHistoricalValueRows(inputDays, extractedHistoricalValuesRows)
+	historicalValues, err := dh.getter.GetDataFromHistoricalValueRows(inputDays, extractedHistoricalValuesRows)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(string(err.Error())))
 		return
 	}
-	graphName := graph.MakeGraph(historicalValues, minPrice, maxPrice, cryptoCode, rawInputDays)
+	graphName := graph.NewGrapher().MakeGraph(historicalValues, cryptoCode, rawInputDays) // doubt
+	// graphName := graph.MakeGraph(historicalValues, cryptoCode, rawInputDays)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("Data successfully graphed in file: %s", graphName)))
 }
 
 // cryptoHystoricalValuesRequest - make http request.
 func cryptoHystoricalValuesRequest(reqUrl string) (resp *http.Response, err error) {
-	resp, err = http.Get(reqUrl)
+	request, err := http.NewRequest(http.MethodGet, reqUrl, nil)
 	if err != nil {
-		log.Println("HTTP request error: ", err)
+		log.Printf("The HTTP request failed with error %s\n", err)
 		return nil, errors.New("request error")
 	}
-	return resp, nil
+	response, err := Client.Do(request)
+	if err != nil {
+		if err != nil {
+			log.Printf("error on the external api request: %v\n", err.Error())
+			return nil, errors.New("response error")
+		}
+	}
+	return response, nil
 }
 
 //validateInputDays - Validates the input is a valid positiv number.

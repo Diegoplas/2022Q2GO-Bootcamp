@@ -13,8 +13,15 @@ import (
 	"github.com/wcharczuk/go-chart/v2/drawing"
 )
 
+type Grapher struct {
+}
+
+func NewGrapher() Grapher {
+	return Grapher{}
+}
+
 // MakeGraph - Generates the graph with the values/dates and saves it as an image.
-func MakeGraph(records model.CryptoRecordValues, minValue, maxValue float64, cryptoCode, days string) string {
+func (g Grapher) MakeGraph(records model.CryptoRecordValues, cryptoCode, days string) string {
 	graphFileName := fmt.Sprintf("historical-usd-%s-%s-days-graph.png", cryptoCode, days)
 	priceSeries := chart.TimeSeries{
 		Name: "SPY",
@@ -51,8 +58,8 @@ func MakeGraph(records model.CryptoRecordValues, minValue, maxValue float64, cry
 		YAxis: chart.YAxis{
 			Range: &chart.ContinuousRange{
 				//Values added just to have a better display of the graph/title
-				Max: maxValue + config.GraphTopBottomSpace,
-				Min: minValue - config.GraphTopBottomSpace,
+				Max: records.MaxPrice + config.GraphTopBottomSpace,
+				Min: records.MinPrice - config.GraphTopBottomSpace,
 			},
 		},
 		Series: []chart.Series{

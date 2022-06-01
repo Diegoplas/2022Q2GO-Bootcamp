@@ -12,6 +12,7 @@ import (
 
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/config"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/model"
+
 	"github.com/wcharczuk/go-chart"
 )
 
@@ -22,7 +23,14 @@ func (de *DataError) Error() string {
 	return "error handling data"
 }
 
-func createCSVFile() error {
+type CSVDataHandler struct {
+}
+
+func NewCSVDataHandler() CSVDataHandler {
+	return CSVDataHandler{}
+}
+
+func (csvdh CSVDataHandler) CreateCSVFile() error {
 	// Create the file
 	_, err := os.Create(config.HistoricalValuesCSVPath)
 	if err != nil {
@@ -33,9 +41,9 @@ func createCSVFile() error {
 }
 
 // CopyResponseToCSVFile - copy the response body of a request to just created CSV file.
-func CopyResponseToCSVFile(resp *http.Response) error {
+func (csvdh CSVDataHandler) CopyResponseToCSVFile(resp *http.Response) error {
 	// Writer the body to file
-	err := createCSVFile()
+	err := csvdh.CreateCSVFile()
 	if err != nil {
 		return err
 	}
@@ -55,14 +63,13 @@ func CopyResponseToCSVFile(resp *http.Response) error {
 }
 
 // ExtractRowsFromCSVFile - Reads the rows of a CSV File and returns a 2D array (row and columns)
-func ExtractRowsFromCSVFile(csvFileName string) (rows [][]string, err error) {
+func (csvdh CSVDataHandler) ExtractRowsFromCSVFile(csvFileName string) (rows [][]string, err error) {
 	csvFile, err := os.Open(csvFileName)
 	if err != nil {
 		log.Println("Error opening csv file:", err)
 		return nil, &DataError{}
 	}
 	defer csvFile.Close()
-
 	CSVRows, err := csv.NewReader(csvFile).ReadAll()
 	if err != nil {
 		log.Println("Error reading CSV data: ", err)
@@ -72,10 +79,10 @@ func ExtractRowsFromCSVFile(csvFileName string) (rows [][]string, err error) {
 }
 
 // GetDataFromHistoricalValueRows - Convert the data extracted from the CSV to their corresponding types, store them and get the Min and Max price values.
-func GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]string) (records model.CryptoRecordValues, minValue, maxValue float64, dataError error) {
+func (csvdh CSVDataHandler) GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]string) (records model.CryptoRecordValues, dataError error) {
 	cryptoRecords := model.CryptoRecordValues{}
 	// Default values for obtaining the max and the min values (for graph use).
-	minValue, maxValue = 100000000.0, 0.0
+	minValue, maxValue := 100000000.0, 0.0
 	// Starting from 1 to skip the column titles and adding one to the request day to compensate.
 	for idx := 1; idx <= requestedDays+1; idx++ {
 		date := historicalValueRows[idx][0]
@@ -83,11 +90,11 @@ func GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]s
 		lowPriceUSD := historicalValueRows[idx][3]
 		timestamp, err := convertCSVStrToDate(date)
 		if err != nil {
-			return model.CryptoRecordValues{}, 0.0, 0.0, errors.New("historical data error")
+			return model.CryptoRecordValues{}, errors.New("historical data error")
 		}
 		value, err := averageHighLowCryptoPrices(lowPriceUSD, highPriceUSD)
 		if err != nil {
-			return model.CryptoRecordValues{}, 0.0, 0.0, errors.New("historical data error")
+			return model.CryptoRecordValues{}, errors.New("historical data error")
 		}
 		if value > maxValue {
 			maxValue = value
@@ -98,7 +105,9 @@ func GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]s
 		cryptoRecords.Dates = append(cryptoRecords.Dates, timestamp)
 		cryptoRecords.AveragePrice = append(cryptoRecords.AveragePrice, value)
 	}
-	return cryptoRecords, minValue, maxValue, nil
+	cryptoRecords.MaxPrice = maxValue
+	cryptoRecords.MinPrice = minValue
+	return cryptoRecords, nil
 }
 
 // averageHighLowCryptoPrices - Returns the average of the low and high price of the crypto currency.

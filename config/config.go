@@ -6,7 +6,7 @@ const (
 	Port                    = ":8080"
 	Market                  = "USD"
 	HistoricalValuesCSVPath = "csvdata/historical-prices.csv"
-	CryptoNamesList         = "csvdata/cryptoCurrencyList.csv"
+	CryptoNamesListPath     = "csvdata/cryptoCurrencyList.csv"
 	GraphTopBottomSpace     = 5000.0
 )
 
