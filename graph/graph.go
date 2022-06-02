@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Diegoplas/2022Q2GO-Bootcamp/config"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/model"
 
 	chart "github.com/wcharczuk/go-chart/v2"
@@ -22,6 +21,9 @@ func NewGrapher() Grapher {
 
 // MakeGraph - Generates the graph with the values/dates and saves it as an image.
 func (g Grapher) MakeGraph(records model.CryptoRecordValues, cryptoCode, days string) string {
+	// Use the 10% of the Max/Min value of the records to have a better view of the graph values.
+	GraphTopSpace := records.MaxPrice * .1
+	GraphBottomSpace := records.MinPrice * .1
 	graphFileName := fmt.Sprintf("historical-usd-%s-%s-days-graph.png", cryptoCode, days)
 	priceSeries := chart.TimeSeries{
 		Name: "SPY",
@@ -58,8 +60,8 @@ func (g Grapher) MakeGraph(records model.CryptoRecordValues, cryptoCode, days st
 		YAxis: chart.YAxis{
 			Range: &chart.ContinuousRange{
 				//Values added just to have a better display of the graph/title
-				Max: records.MaxPrice + config.GraphTopBottomSpace,
-				Min: records.MinPrice - config.GraphTopBottomSpace,
+				Max: records.MaxPrice + GraphTopSpace,
+				Min: records.MinPrice - GraphBottomSpace,
 			},
 		},
 		Series: []chart.Series{

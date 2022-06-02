@@ -30,6 +30,7 @@ type DataGetter interface {
 	CreateCSVFile() error
 	CopyResponseToCSVFile(resp *http.Response) error
 	ExtractRowsFromCSVFile(csvFileName string) (rows [][]string, err error)
+	ExtractDataFromBTCCSVRows(requestedDay int, csvRows [][]string) (records model.CryptoRecordValues, dataError error)
 	GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]string) (records model.CryptoRecordValues, dataError error)
 }
 
@@ -99,9 +100,8 @@ func (dhg DataHandlerAndGrapher) GraphCryptoRecords(w http.ResponseWriter, r *ht
 		w.Write([]byte(string(err.Error())))
 		return
 	}
-
 	// Use historical values data
-	extractedHistoricalValuesRows, err := dhg.getter.ExtractRowsFromCSVFile(config.HistoricalValuesCSVPath)
+	extractedHistoricalValuesRows, err := dhg.getter.ExtractRowsFromCSVFile(config.CryptoHistoricalValuesCSVPath)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(string(err.Error())))
@@ -114,6 +114,37 @@ func (dhg DataHandlerAndGrapher) GraphCryptoRecords(w http.ResponseWriter, r *ht
 		return
 	}
 	graphName := dhg.grapher.MakeGraph(historicalValues, cryptoCode, rawInputDays)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(fmt.Sprintf("Data successfully graphed in file: %s", graphName)))
+}
+
+// GraphBTCValues - Gets the historic data from the CSV file and graph of it.
+func (dhg DataHandlerAndGrapher) GraphBTCValues(w http.ResponseWriter, r *http.Request) {
+	BitcoinCode := "BTC"
+	rawInputDay := mux.Vars(r)["day"]
+	inputDay, err := validateInputDays(rawInputDay)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(string(err.Error())))
+		return
+	}
+	extractedBTCHistoricalValuesRows, err := dhg.getter.ExtractRowsFromCSVFile(config.BTCHistoricalValuesCSVPath)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(string(err.Error())))
+		return
+	}
+	BTCRecordValues, err := dhg.getter.ExtractDataFromBTCCSVRows(inputDay, extractedBTCHistoricalValuesRows)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(string(err.Error())))
+		return
+	}
+	// If the requested day exceeds the number of records on the CSV file, use the latest day.
+	if inputDay > len(extractedBTCHistoricalValuesRows) {
+		rawInputDay = strconv.Itoa(len(extractedBTCHistoricalValuesRows))
+	}
+	graphName := dhg.grapher.MakeGraph(BTCRecordValues, BitcoinCode, rawInputDay)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("Data successfully graphed in file: %s", graphName)))
 }

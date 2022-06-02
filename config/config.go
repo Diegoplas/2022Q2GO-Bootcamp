@@ -3,11 +3,11 @@ package config
 import "github.com/spf13/viper"
 
 const (
-	Port                    = ":8080"
-	Market                  = "USD"
-	HistoricalValuesCSVPath = "csvdata/historical-prices.csv"
-	CryptoNamesListPath     = "csvdata/cryptoCurrencyList.csv"
-	GraphTopBottomSpace     = 5000.0
+	Port                          = ":8080"
+	Market                        = "USD"
+	CryptoNamesListPath           = "csvdata/cryptoCurrencyList.csv"
+	CryptoHistoricalValuesCSVPath = "csvdata/crypto-historical-prices.csv"
+	BTCHistoricalValuesCSVPath    = "csvdata/BTC-historical-prices.csv"
 )
 
 type environmentVars struct {
