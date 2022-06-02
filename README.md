@@ -39,7 +39,9 @@ go mod download
    Eg. http://localhost:8080/btc-values/90
    ```
   
-  Here is the previous request's graph.
+    Here is the previous request's graph.
+
+  ![alt text](https://github.com/Diegoplas/2022Q2GO-Bootcamp/blob/second-delivery/historical-usd-BTC-90-days-graph.png)
 
 3. Crypto Historic Values - /usd-crypto-conversion/{cryptoCode}/{days}
 
@@ -54,4 +56,6 @@ go mod download
    Eg. http://localhost:8080/usd-crypto-conversion/sol/360
    ```
 
-  Here is the previous request's graph.
+    Here is the previous request's graph.
+
+  ![alt text](https://github.com/Diegoplas/2022Q2GO-Bootcamp/blob/second-delivery/historical-usd-SOL-360-days-graph.png)
