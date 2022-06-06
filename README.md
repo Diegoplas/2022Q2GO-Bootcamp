@@ -1,9 +1,7 @@
-# BTC-USD Grapher
+# USD-Crypto Grapher
 
-This API consumes historical prices of Bitcoin on USD dollars.
-It makes a graph of them all or from the latest value to a specific date. 
-1 being today's price and 365 being the historical values of the last year
-Day values are from [1- 182] 
+This API gets historical prices of Bitcoin or other 575 different crypto currencies on USD dollars, consulting external or local data.
+It makes a graph of the last N requested days for having a better visualization of the behavior of that currency on the market. 
 
 ### Requirements
 

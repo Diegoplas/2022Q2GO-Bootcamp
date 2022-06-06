@@ -34,7 +34,7 @@ func (csvdh CSVDataHandler) CreateCSVFile() error {
 	// Create the file
 	_, err := os.Create(config.CryptoHistoricalValuesCSVPath)
 	if err != nil {
-		log.Println("Error creating csvFile ", err) //CHECK FOR ERROR
+		log.Println("Error creating csvFile ", err)
 		return &DataError{}
 	}
 	return nil
@@ -83,9 +83,8 @@ func (csvdh CSVDataHandler) GetDataFromHistoricalValueRows(requestedDays int, hi
 	cryptoRecords := model.CryptoRecordValues{}
 	// Default values for obtaining the max and the min values (for graph use).
 	minValue, maxValue := 100000000.0, 0.0
-	compensateRowTitles := requestedDays + 1
-	// Starting from 1 to skip the column titles and adding one to the request day to compensate.
-	for idx := 1; idx <= compensateRowTitles; idx++ {
+	// Starting from 1 to skip the column titles.
+	for idx := 1; idx <= requestedDays; idx++ {
 		date := historicalValueRows[idx][0]
 		highPriceUSD := historicalValueRows[idx][2]
 		lowPriceUSD := historicalValueRows[idx][3]
@@ -93,18 +92,18 @@ func (csvdh CSVDataHandler) GetDataFromHistoricalValueRows(requestedDays int, hi
 		if err != nil {
 			return model.CryptoRecordValues{}, errors.New("historical data error")
 		}
-		value, err := averageHighLowCryptoPrices(lowPriceUSD, highPriceUSD)
+		averagePrice, err := averageHighLowCryptoPrices(lowPriceUSD, highPriceUSD)
 		if err != nil {
 			return model.CryptoRecordValues{}, errors.New("historical data error")
 		}
-		if value > maxValue {
-			maxValue = value
+		if averagePrice > maxValue {
+			maxValue = averagePrice
 		}
-		if value < minValue {
-			minValue = value
+		if averagePrice < minValue {
+			minValue = averagePrice
 		}
 		cryptoRecords.Dates = append(cryptoRecords.Dates, timestamp)
-		cryptoRecords.AveragePrice = append(cryptoRecords.AveragePrice, value)
+		cryptoRecords.AveragePrice = append(cryptoRecords.AveragePrice, averagePrice)
 	}
 	cryptoRecords.MaxPrice = maxValue
 	cryptoRecords.MinPrice = minValue
@@ -145,13 +144,13 @@ func (csvdh CSVDataHandler) ExtractDataFromBTCCSVRows(requestedDay int, csvRows 
 	return BTCRecords, nil
 }
 
-func convertCSVStrDataToNumericTypes(strId, strFloat string) (int, float64, error) {
-	id, err := strconv.Atoi(strId)
+func convertCSVStrDataToNumericTypes(idStr, priceStr string) (int, float64, error) {
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		log.Println("Error, converting id (int):", err)
 		return 0, 0.0, errors.New("data error, numeric")
 	}
-	value, err := strconv.ParseFloat(strFloat, 64)
+	value, err := strconv.ParseFloat(priceStr, 64)
 	if err != nil {
 		log.Println("Error, converting value (float):", err)
 		return 0, 0.0, errors.New("data error, numeric")

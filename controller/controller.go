@@ -102,12 +102,14 @@ func (dhg DataHandlerAndGrapher) GraphCryptoRecords(w http.ResponseWriter, r *ht
 	}
 	// Use historical values data
 	extractedHistoricalValuesRows, err := dhg.getter.ExtractRowsFromCSVFile(config.CryptoHistoricalValuesCSVPath)
+	//fmt.Println(extractedHistoricalValuesRows)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(string(err.Error())))
 		return
 	}
 	historicalValues, err := dhg.getter.GetDataFromHistoricalValueRows(inputDays, extractedHistoricalValuesRows)
+	fmt.Println(historicalValues)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(string(err.Error())))
