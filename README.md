@@ -44,6 +44,7 @@ The main program should be excecuted from root for the paths to match correcly. 
   ![alt text](https://github.com/Diegoplas/2022Q2GO-Bootcamp/blob/second-delivery/historical-usd-BTC-90-days-graph.png)
 
 &NewLine;
+&NewLine;
 2. Crypto Historic Values - /usd-crypto-conversion/{cryptoCode}/{days}
 
    This endpoint gets the historical values on USD dollars from a variaty of crypto currencies, currently 576 different currencies, for a requested number of days. Then write those vales into a CSV File and graph them. 
@@ -61,6 +62,7 @@ The main program should be excecuted from root for the paths to match correcly. 
 
   ![alt text](https://github.com/Diegoplas/2022Q2GO-Bootcamp/blob/second-delivery/historical-usd-SOL-360-days-graph.png)
 
+&NewLine;
 &NewLine;
   3. Worker Pool - /workerpool/{odd_or_even}/{items}/{items_per_worker}
 
