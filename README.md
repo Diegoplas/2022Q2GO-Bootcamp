@@ -21,13 +21,15 @@ go mod download
 
 ### 2. Usage
 
-1. The main program should be excecuted from root for the paths to match correcly. To excecute it we can use:
+The main program should be excecuted from root for the paths to match correcly. To excecute it we can use:
    
    ```
    go run ./main/.
    ```
 
-2. BTC Historic Values on CSV - /btc-values/{day}
+### 2. Available endpoints
+
+1. BTC Historic Values on CSV - /btc-values/{day}
 
    This endpoint gets the historical prices from a CSV file of the latest n days. Ex, if you want to know the prices of the quarter of the year, 
    you would write 90 as the input (that would be 90 days).
@@ -41,7 +43,7 @@ go mod download
 
   ![alt text](https://github.com/Diegoplas/2022Q2GO-Bootcamp/blob/second-delivery/historical-usd-BTC-90-days-graph.png)
 
-3. Crypto Historic Values - /usd-crypto-conversion/{cryptoCode}/{days}
+2. Crypto Historic Values - /usd-crypto-conversion/{cryptoCode}/{days}
 
    This endpoint gets the historical values on USD dollars from a variaty of crypto currencies, currently 576 different currencies, for a requested number of days. Then write those vales into a CSV File and graph them. 
    
@@ -57,3 +59,19 @@ go mod download
     Here is the previous request's graph.
 
   ![alt text](https://github.com/Diegoplas/2022Q2GO-Bootcamp/blob/second-delivery/historical-usd-SOL-360-days-graph.png)
+
+  3. Worker Pool - /workerpool/{odd_or_even}/{items}/{items_per_worker}
+
+   This endpoint gets the information of a CSV file, previously created with endpoint number 2 (/usd-crypto-conversion/{cryptoCode}/{days}) of this file. It returns a number of Dates and Prices of the Crypto currency requested on the previous endpoint. 
+   
+   As the endpoint's name sugests, this works using goroutines, which means that many processes are running at the same time instead as usual sequential execution.
+
+   Three parameters must be added to this endpoint for it to work:
+   - odd_or_even: Depending on this input, the response will return the odd or even CSV rows which contains the Dates and Prices.         
+   - items:  The number of Dates and Prices that will be included on the response.
+   - items_per_worker: The number of tasks that each worker will be handling.
+
+   * NOTES: Item number should be higher than the number of items per worker
+   ```
+   Eg. http://localhost:8000/workerpool/odd/48/4
+   ```

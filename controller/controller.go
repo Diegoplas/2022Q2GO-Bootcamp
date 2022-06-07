@@ -53,10 +53,11 @@ type DataHandlerAndGrapher struct {
 	converter DataCoverter
 }
 
-func NewDataGetter(getter DataGetter, grapher GraphMaker) DataHandlerAndGrapher {
+func NewDataGetter(getter DataGetter, grapher GraphMaker, converter DataCoverter) DataHandlerAndGrapher {
 	return DataHandlerAndGrapher{
-		getter:  getter,
-		grapher: grapher,
+		getter:    getter,
+		grapher:   grapher,
+		converter: converter,
 	}
 }
 
@@ -246,25 +247,25 @@ func (dhg DataHandlerAndGrapher) WorkerPoolHandler(w http.ResponseWriter, r *htt
 	// Validating input parameters.
 	oddOrEven := strings.ToLower(mux.Vars(r)["odd_or_even"])
 	if (oddOrEven != "odd" && oddOrEven != "even") || oddOrEven == "" {
-		oddOrEvenError := errors.New("please use odd or even as your first parameter")
-		render.New().JSON(w, http.StatusBadRequest, oddOrEvenError)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("please use odd or even as your first parameter"))
 		return
 	}
 	items, err := strconv.Atoi(mux.Vars(r)["items"])
 	if err != nil || items <= 0 {
-		itemsError := errors.New("items parameter should be a positive number")
-		render.New().JSON(w, http.StatusBadRequest, itemsError)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("items parameter should be a positive number"))
 		return
 	}
 	itemsPerWorker, err := strconv.Atoi(mux.Vars(r)["items_per_worker"])
 	if err != nil || itemsPerWorker <= 0 {
-		itemsPerWorkerError := errors.New("items per worker parameter should be a positive number")
-		render.New().JSON(w, http.StatusBadRequest, itemsPerWorkerError)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("items per worker parameter should be a positive number"))
 		return
 	}
 	if itemsPerWorker > items {
-		itemsPerWorkerError := errors.New("number of items should be bigger than number of items per worker")
-		render.New().JSON(w, http.StatusBadRequest, itemsPerWorkerError)
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("number of items should be bigger than number of items per worker"))
 		return
 	}
 
@@ -289,7 +290,7 @@ func (dhg DataHandlerAndGrapher) WorkerPoolHandler(w http.ResponseWriter, r *htt
 	// Waitgroup for Synchronization
 	var waitGroup sync.WaitGroup
 
-	// Declare the workers
+	// Declare the workers and send them their taks
 	for workerID := 1; workerID <= numOfWorkers; workerID++ {
 		waitGroup.Add(1)
 		go func() {
