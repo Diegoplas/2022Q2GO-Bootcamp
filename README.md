@@ -72,6 +72,7 @@ The main program should be excecuted from root for the paths to match correcly. 
    - items_per_worker: The number of tasks that each worker will be handling.
 
    * NOTES: Item number should be higher than the number of items per worker
+   
    ```
    Eg. http://localhost:8000/workerpool/odd/48/4
    ```
