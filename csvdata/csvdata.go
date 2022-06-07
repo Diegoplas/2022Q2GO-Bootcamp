@@ -30,6 +30,12 @@ func NewCSVDataHandler() CSVDataHandler {
 	return CSVDataHandler{}
 }
 
+type CSVDataConverter struct {
+}
+
+func NewCSVDataConverter() CSVDataConverter {
+	return CSVDataConverter{}
+}
 func (csvdh CSVDataHandler) CreateCSVFile() error {
 	// Create the file
 	_, err := os.Create(config.CryptoHistoricalValuesCSVPath)
@@ -88,11 +94,11 @@ func (csvdh CSVDataHandler) GetDataFromHistoricalValueRows(requestedDays int, hi
 		date := historicalValueRows[idx][0]
 		highPriceUSD := historicalValueRows[idx][2]
 		lowPriceUSD := historicalValueRows[idx][3]
-		timestamp, err := convertCSVStrToDate(date)
+		timestamp, err := NewCSVDataConverter().ConvertCSVStrToDate(date)
 		if err != nil {
 			return model.CryptoRecordValues{}, errors.New("historical data error")
 		}
-		averagePrice, err := averageHighLowCryptoPrices(lowPriceUSD, highPriceUSD)
+		averagePrice, err := NewCSVDataConverter().AverageHighLowCryptoPrices(lowPriceUSD, highPriceUSD)
 		if err != nil {
 			return model.CryptoRecordValues{}, errors.New("historical data error")
 		}
@@ -118,11 +124,11 @@ func (csvdh CSVDataHandler) ExtractDataFromBTCCSVRows(requestedDay int, csvRows 
 	// Starting from 1 to skip the column titles.
 	for idx := 1; idx < csvLinesLen; idx++ {
 		dateOnly := csvRows[idx][1][:10]
-		date, err := convertCSVStrToDate(dateOnly)
+		date, err := NewCSVDataConverter().ConvertCSVStrToDate(dateOnly)
 		if err != nil {
 			return model.CryptoRecordValues{}, err
 		}
-		id, value, err := convertCSVStrDataToNumericTypes(csvRows[idx][0], csvRows[idx][2])
+		id, value, err := NewCSVDataConverter().ConvertCSVStrDataToNumericTypes(csvRows[idx][0], csvRows[idx][2])
 		if err != nil {
 			return model.CryptoRecordValues{}, err
 		}
@@ -144,7 +150,7 @@ func (csvdh CSVDataHandler) ExtractDataFromBTCCSVRows(requestedDay int, csvRows 
 	return BTCRecords, nil
 }
 
-func convertCSVStrDataToNumericTypes(idStr, priceStr string) (int, float64, error) {
+func (csvdc CSVDataConverter) ConvertCSVStrDataToNumericTypes(idStr, priceStr string) (int, float64, error) {
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		log.Println("Error, converting id (int):", err)
@@ -159,7 +165,7 @@ func convertCSVStrDataToNumericTypes(idStr, priceStr string) (int, float64, erro
 }
 
 // averageHighLowCryptoPrices - Returns the average of the low and high price of the crypto currency.
-func averageHighLowCryptoPrices(lowPrice, highPrice string) (float64, error) {
+func (csvdc CSVDataConverter) AverageHighLowCryptoPrices(lowPrice, highPrice string) (float64, error) {
 	lowP, err := strconv.ParseFloat(lowPrice, 64)
 	if err != nil {
 		log.Println("Error, converting value (float):", err)
@@ -175,7 +181,7 @@ func averageHighLowCryptoPrices(lowPrice, highPrice string) (float64, error) {
 }
 
 // convertCSVStrToDate - Convert string date to time.Time type
-func convertCSVStrToDate(strDate string) (time.Time, error) {
+func (csvdc CSVDataConverter) ConvertCSVStrToDate(strDate string) (time.Time, error) {
 	date, err := time.Parse(chart.DefaultDateFormat, strDate)
 	if err != nil {
 		log.Println("Error, date parsing:", err)

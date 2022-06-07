@@ -19,5 +19,6 @@ func GetRouter() (router *mux.Router) {
 	router = mux.NewRouter()
 	router.HandleFunc("/btc-values/{day}", dataHandler.GraphBTCValues).Methods(http.MethodGet)
 	router.HandleFunc("/usd-crypto-conversion/{cryptoCode}/{days}", dataHandler.GraphCryptoRecords).Methods(http.MethodGet)
+	router.HandleFunc("/workerpool/{odd_or_even}/{items}/{items_per_worker}", dataHandler.WorkerPoolHandler).Methods(http.MethodGet)
 	return router
 }

@@ -9,3 +9,8 @@ type CryptoRecordValues struct {
 	MaxPrice     float64
 	MinPrice     float64
 }
+
+type CryptoPricesAndDates struct {
+	Date  time.Time
+	Price float64
+}

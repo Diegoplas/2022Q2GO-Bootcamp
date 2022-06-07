@@ -7,11 +7,14 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/config"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/model"
 
 	"github.com/gorilla/mux"
+	"github.com/unrolled/render"
 )
 
 type HTTPClient interface {
@@ -34,13 +37,20 @@ type DataGetter interface {
 	GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]string) (records model.CryptoRecordValues, dataError error)
 }
 
+type DataCoverter interface {
+	ConvertCSVStrToDate(strDate string) (time.Time, error)
+	AverageHighLowCryptoPrices(lowPrice, highPrice string) (float64, error)
+	ConvertCSVStrDataToNumericTypes(idStr, priceStr string) (int, float64, error)
+}
+
 type GraphMaker interface {
 	MakeGraph(records model.CryptoRecordValues, cryptoCode, days string) string
 }
 
 type DataHandlerAndGrapher struct {
-	getter  DataGetter
-	grapher GraphMaker
+	getter    DataGetter
+	grapher   GraphMaker
+	converter DataCoverter
 }
 
 func NewDataGetter(getter DataGetter, grapher GraphMaker) DataHandlerAndGrapher {
@@ -193,4 +203,124 @@ func validateInputCryptoCode(cryptoCode string, codesRows [][]string) (string, e
 		}
 	}
 	return "", errors.New("please use a valid Crypto Currency code of cryptoCurrencyList.csv")
+}
+
+func (dhg DataHandlerAndGrapher) worker(readChan chan []string, writeChan chan model.CryptoPricesAndDates, itemsPerWorker int) {
+	worksCount := 0
+	for {
+		select {
+		case row, ok := <-readChan:
+			if !ok {
+				return
+			}
+
+			strDate, strHighPrice, strLowPrice := row[0], row[2], row[3]
+			// format the received row.
+			date, err := dhg.converter.ConvertCSVStrToDate(strDate)
+			if err != nil {
+				log.Println(err)
+				break
+			}
+			averagePrice, err := dhg.converter.AverageHighLowCryptoPrices(strHighPrice, strLowPrice)
+			if err != nil {
+				log.Println(err)
+				break
+			}
+
+			cryptoRecordsInfo := model.CryptoPricesAndDates{
+				Date:  date,
+				Price: averagePrice,
+			}
+
+			writeChan <- cryptoRecordsInfo
+			worksCount += 1
+		}
+		// if worker completes it's corresponding items, the worker must rest.
+		if worksCount == itemsPerWorker {
+			break
+		}
+	}
+}
+
+func (dhg DataHandlerAndGrapher) WorkerPoolHandler(w http.ResponseWriter, r *http.Request) {
+	// Validating input parameters.
+	oddOrEven := strings.ToLower(mux.Vars(r)["odd_or_even"])
+	if (oddOrEven != "odd" && oddOrEven != "even") || oddOrEven == "" {
+		oddOrEvenError := errors.New("please use odd or even as your first parameter")
+		render.New().JSON(w, http.StatusBadRequest, oddOrEvenError)
+		return
+	}
+	items, err := strconv.Atoi(mux.Vars(r)["items"])
+	if err != nil || items <= 0 {
+		itemsError := errors.New("items parameter should be a positive number")
+		render.New().JSON(w, http.StatusBadRequest, itemsError)
+		return
+	}
+	itemsPerWorker, err := strconv.Atoi(mux.Vars(r)["items_per_worker"])
+	if err != nil || itemsPerWorker <= 0 {
+		itemsPerWorkerError := errors.New("items per worker parameter should be a positive number")
+		render.New().JSON(w, http.StatusBadRequest, itemsPerWorkerError)
+		return
+	}
+	if itemsPerWorker > items {
+		itemsPerWorkerError := errors.New("number of items should be bigger than number of items per worker")
+		render.New().JSON(w, http.StatusBadRequest, itemsPerWorkerError)
+		return
+	}
+
+	// Get the number of workers needed. If division is not exact, add another worker.
+	numOfWorkers := items / itemsPerWorker
+	if itemsRemainder := items % itemsPerWorker; itemsRemainder != 0 {
+		numOfWorkers += 1
+	}
+
+	// Extract rows from CSV File
+	csvRows, err := dhg.getter.ExtractRowsFromCSVFile(config.CryptoHistoricalValuesCSVPath)
+	if itemsPerWorker > items {
+		itemsPerWorkerError := errors.New("please run /usd-crypto-conversion/{cryptoCode}/{days} endpoint first to generate CSV file")
+		render.New().JSON(w, http.StatusInternalServerError, itemsPerWorkerError)
+		return
+	}
+
+	// Create channels
+	inputCh := make(chan []string)
+	outputCh := make(chan model.CryptoPricesAndDates, items)
+
+	// Waitgroup for Synchronization
+	var waitGroup sync.WaitGroup
+
+	// Declare the workers
+	for workerID := 1; workerID <= numOfWorkers; workerID++ {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			dhg.worker(inputCh, outputCh, itemsPerWorker)
+		}()
+	}
+
+	// Need to retrieve twice the requested items, because only will be getting half of them selecting odd/even
+	totalItems := items * 2
+
+	go func() {
+		for idx := 1; idx <= totalItems; idx++ {
+			if oddOrEven == "even" && (idx%2 == 0) {
+				inputCh <- csvRows[idx]
+			} else if oddOrEven == "odd" && (idx%2 == 1) {
+				inputCh <- csvRows[idx]
+			}
+		}
+		close(inputCh)
+	}()
+
+	// Wait workers to finish tasks
+	waitGroup.Wait()
+	close(outputCh)
+
+	response := []model.CryptoPricesAndDates{}
+
+	for requestedDatesAndPrices := range outputCh {
+		fmt.Println(requestedDatesAndPrices)
+		response = append(response, requestedDatesAndPrices)
+	}
+	render.New().JSON(w, http.StatusOK, &response)
 }
