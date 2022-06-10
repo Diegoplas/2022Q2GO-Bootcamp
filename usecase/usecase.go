@@ -2,7 +2,6 @@ package usecase
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -89,12 +88,10 @@ func (wp WorkPool) GraphCryptoRecords(requestedCryptoCode, requestedDays string)
 	}
 	// Use historical values data
 	extractedHistoricalValuesRows, err := wp.Getter.ExtractRowsFromCSVFile(config.CryptoHistoricalValuesCSVPath)
-	//fmt.Println(extractedHistoricalValuesRows)
 	if err != nil {
 		return "", err
 	}
 	historicalValues, err := wp.Getter.GetDataFromHistoricalValueRows(inputDays, extractedHistoricalValuesRows)
-	fmt.Println(historicalValues)
 	if err != nil {
 		return "", err
 	}
@@ -266,7 +263,6 @@ func (wp WorkPool) CSVWorkerPoolRowExtractor(oddOrEven string, items, itemsPerWo
 	response := []model.CryptoPricesAndDates{}
 
 	for requestedDatesAndPrices := range outputCh {
-		fmt.Println(requestedDatesAndPrices)
 		response = append(response, requestedDatesAndPrices)
 	}
 	return response, nil
