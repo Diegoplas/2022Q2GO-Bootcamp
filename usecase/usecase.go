@@ -26,10 +26,6 @@ func init() {
 	Client = &http.Client{}
 }
 
-type DataGraphers interface {
-	GraphBTCValues(inputDayStr string) (graphURL string, err error)
-	GraphCryptoRecords(requestedCryptoCode, requestedDays string) (cryptoGraphURL string, err error)
-}
 type DataGetter interface {
 	CreateCSVFile() error
 	CopyResponseToCSVFile(resp *http.Response) error
@@ -48,48 +44,24 @@ type GraphMaker interface {
 	MakeGraph(records model.CryptoRecordValues, cryptoCode, days string) string
 }
 
-type WorkerPoolManager interface {
-	CSVWorkerPoolRowExtractor(oddOrEven string, items, itemsPerWorker int) ([]model.CryptoPricesAndDates, error)
-	Worker(readChan chan []string, writeChan chan model.CryptoPricesAndDates, itemsPerWorker int)
-}
-
-// CHECK ::::
 type WorkPool struct {
+	Getter    DataGetter
+	Grapher   GraphMaker
+	Converter DataCoverter
 }
 
-// CHECK ::::
-func NewWorkerPooler() WorkPool {
-	return WorkPool{}
-}
-
-type DataHandlerAndGrapher struct {
-	getter    DataGetter
-	grapher   GraphMaker
-	converter DataCoverter
-	workpool  WorkerPoolManager
-}
-
-func NewDataGetter(getter DataGetter, grapher GraphMaker, converter DataCoverter,
-	workpool WorkerPoolManager) DataHandlerAndGrapher {
-	return DataHandlerAndGrapher{
-		getter:    getter,
-		grapher:   grapher,
-		converter: converter,
-		workpool:  workpool,
+func NewWorkerPooler(Getter DataGetter, Grapher GraphMaker, Converter DataCoverter) WorkPool {
+	return WorkPool{
+		Getter:    Getter,
+		Grapher:   Grapher,
+		Converter: Converter,
 	}
 }
 
-type DataGrapher struct {
-}
-
-func NewDataGrapher() DataGrapher {
-	return DataGrapher{}
-}
-
 // GraphCryptoRecords - Gets the historic data from http request, save it into a CSV file and graph of it.
-func (dhg DataHandlerAndGrapher) GraphCryptoRecords(requestedCryptoCode, requestedDays string) (cryptoGraphURL string, err error) {
+func (wp WorkPool) GraphCryptoRecords(requestedCryptoCode, requestedDays string) (cryptoGraphURL string, err error) {
 	// Load config variables and Validate Input Crypto Code
-	cryptoCodesRows, err := dhg.getter.ExtractRowsFromCSVFile(config.CryptoNamesListPath)
+	cryptoCodesRows, err := wp.Getter.ExtractRowsFromCSVFile(config.CryptoNamesListPath)
 	if err != nil {
 		return "", err
 	}
@@ -111,22 +83,22 @@ func (dhg DataHandlerAndGrapher) GraphCryptoRecords(requestedCryptoCode, request
 	if err != nil {
 		return "", err
 	}
-	err = dhg.getter.CopyResponseToCSVFile(response)
+	err = wp.Getter.CopyResponseToCSVFile(response)
 	if err != nil {
 		return "", err
 	}
 	// Use historical values data
-	extractedHistoricalValuesRows, err := dhg.getter.ExtractRowsFromCSVFile(config.CryptoHistoricalValuesCSVPath)
+	extractedHistoricalValuesRows, err := wp.Getter.ExtractRowsFromCSVFile(config.CryptoHistoricalValuesCSVPath)
 	//fmt.Println(extractedHistoricalValuesRows)
 	if err != nil {
 		return "", err
 	}
-	historicalValues, err := dhg.getter.GetDataFromHistoricalValueRows(inputDays, extractedHistoricalValuesRows)
+	historicalValues, err := wp.Getter.GetDataFromHistoricalValueRows(inputDays, extractedHistoricalValuesRows)
 	fmt.Println(historicalValues)
 	if err != nil {
 		return "", err
 	}
-	graphName := dhg.grapher.MakeGraph(historicalValues, cryptoCode, requestedDays)
+	graphName := wp.Grapher.MakeGraph(historicalValues, cryptoCode, requestedDays)
 	return graphName, nil
 }
 
@@ -149,18 +121,18 @@ func cryptoHystoricalValuesRequest(reqUrl string) (resp *http.Response, err erro
 }
 
 // GraphBTCValues - Gets the historic data from the CSV file and graph of it.
-func (dhg DataHandlerAndGrapher) GraphBTCValues(inputDayStr string) (graphURL string, err error) {
+func (wp WorkPool) GraphBTCValues(inputDayStr string) (graphURL string, err error) {
 	bitcoinCode := "BTC"
 	inputDay, err := validateInputDays(inputDayStr)
 	if err != nil {
 		return "", err
 	}
-	extractedBTCHistoricalValuesRows, err := dhg.getter.ExtractRowsFromCSVFile(config.BTCHistoricalValuesCSVPath)
+	extractedBTCHistoricalValuesRows, err := wp.Getter.ExtractRowsFromCSVFile(config.BTCHistoricalValuesCSVPath)
 	if err != nil {
 		return "", err
 	}
 
-	BTCRecordValues, err := dhg.getter.ExtractDataFromBTCCSVRows(inputDay, extractedBTCHistoricalValuesRows)
+	BTCRecordValues, err := wp.Getter.ExtractDataFromBTCCSVRows(inputDay, extractedBTCHistoricalValuesRows)
 	if err != nil {
 		return "", err
 	}
@@ -168,7 +140,7 @@ func (dhg DataHandlerAndGrapher) GraphBTCValues(inputDayStr string) (graphURL st
 	if inputDay > len(extractedBTCHistoricalValuesRows) {
 		inputDayStr = strconv.Itoa(len(extractedBTCHistoricalValuesRows))
 	}
-	graphName := dhg.grapher.MakeGraph(BTCRecordValues, bitcoinCode, inputDayStr)
+	graphName := wp.Grapher.MakeGraph(BTCRecordValues, bitcoinCode, inputDayStr)
 	return graphName, nil
 }
 
@@ -199,7 +171,7 @@ func validateInputCryptoCode(cryptoCode string, codesRows [][]string) (string, e
 	return "", errors.New("please use a valid Crypto Currency code of cryptoCurrencyList.csv")
 }
 
-func (dhg DataHandlerAndGrapher) Worker(readChan chan []string, writeChan chan model.CryptoPricesAndDates, itemsPerWorker int) {
+func (wp WorkPool) Worker(readChan chan []string, writeChan chan model.CryptoPricesAndDates, itemsPerWorker int) {
 	worksCount := 0
 	for {
 		row, ok := <-readChan
@@ -209,12 +181,12 @@ func (dhg DataHandlerAndGrapher) Worker(readChan chan []string, writeChan chan m
 
 		strDate, strHighPrice, strLowPrice := row[0], row[2], row[3]
 		// format the received row.
-		date, err := dhg.converter.ConvertCSVStrToDate(strDate)
+		date, err := wp.Converter.ConvertCSVStrToDate(strDate)
 		if err != nil {
 			log.Println(err)
 			break
 		}
-		averagePrice, err := dhg.converter.AverageHighLowCryptoPrices(strHighPrice, strLowPrice)
+		averagePrice, err := wp.Converter.AverageHighLowCryptoPrices(strHighPrice, strLowPrice)
 		if err != nil {
 			log.Println(err)
 			break
@@ -236,7 +208,7 @@ func (dhg DataHandlerAndGrapher) Worker(readChan chan []string, writeChan chan m
 }
 
 // CSVWorkerPoolRowExtractor - Extract the information from a certain number of odd or even CSV rows concurrently with a given number of workers.
-func (dhg DataHandlerAndGrapher) CSVWorkerPoolRowExtractor(oddOrEven string, items, itemsPerWorker int) ([]model.CryptoPricesAndDates, error) {
+func (wp WorkPool) CSVWorkerPoolRowExtractor(oddOrEven string, items, itemsPerWorker int) ([]model.CryptoPricesAndDates, error) {
 	// Validating input parameters.
 	if itemsPerWorker > items {
 		return nil, errors.New("number of items should be bigger than number of items per worker")
@@ -249,7 +221,7 @@ func (dhg DataHandlerAndGrapher) CSVWorkerPoolRowExtractor(oddOrEven string, ite
 	}
 
 	// Extract rows from CSV File
-	csvRows, err := dhg.getter.ExtractRowsFromCSVFile(config.CryptoHistoricalValuesCSVPath)
+	csvRows, err := wp.Getter.ExtractRowsFromCSVFile(config.CryptoHistoricalValuesCSVPath)
 	if err != nil || itemsPerWorker <= 0 {
 		return nil, errors.New("data error")
 	}
@@ -269,7 +241,7 @@ func (dhg DataHandlerAndGrapher) CSVWorkerPoolRowExtractor(oddOrEven string, ite
 		waitGroup.Add(1)
 		go func() {
 			defer waitGroup.Done()
-			dhg.Worker(inputCh, outputCh, itemsPerWorker)
+			wp.Worker(inputCh, outputCh, itemsPerWorker)
 		}()
 	}
 

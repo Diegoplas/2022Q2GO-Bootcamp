@@ -16,10 +16,8 @@ func GetRouter() (router *mux.Router) {
 	dataService := csvdata.NewCSVDataHandler()
 	graphService := graph.NewGrapher()
 	converterService := csvdata.NewCSVDataConverter()
-	workerPoolService := usecase.NewWorkerPooler()
-	dataGrapherService := usecase.NewDataGrapher()
-	serviceHandler := controller.NewUseCasesHandler(dataService, graphService, converterService,
-		workerPoolService, dataGrapherService)
+	workerPoolService := usecase.NewWorkerPooler(dataService, graphService, converterService)
+	serviceHandler := controller.NewDataGrapher(workerPoolService)
 
 	router = mux.NewRouter()
 	router.HandleFunc("/btc-values/{day}", serviceHandler.GraphBTCValuesHandler).Methods(http.MethodGet)

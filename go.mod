@@ -3,6 +3,7 @@ module github.com/Diegoplas/2022Q2GO-Bootcamp
 go 1.18
 
 require (
+	github.com/golang/mock v1.6.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/spf13/viper v1.12.0

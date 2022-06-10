@@ -26,7 +26,15 @@ func (de *DataError) Error() string {
 type CSVDataHandler struct {
 }
 
-func NewCSVDataHandler() CSVDataHandler {
+type DataGetter interface {
+	CreateCSVFile() error
+	CopyResponseToCSVFile(resp *http.Response) error
+	GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]string) (records model.CryptoRecordValues, dataError error)
+	ExtractRowsFromCSVFile(csvFileName string) (rows [][]string, err error)
+	ExtractDataFromBTCCSVRows(requestedDay int, csvRows [][]string) (records model.CryptoRecordValues, dataError error)
+}
+
+func NewCSVDataHandler() DataGetter {
 	return CSVDataHandler{}
 }
 
