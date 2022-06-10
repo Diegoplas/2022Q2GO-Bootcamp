@@ -254,7 +254,7 @@ func Test_convertCSVStrDataToNumericTypes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := convertCSVStrDataToNumericTypes(tt.args.idStr, tt.args.priceStr)
+			got, got1, err := NewCSVDataConverter().ConvertCSVStrDataToNumericTypes(tt.args.idStr, tt.args.priceStr)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("convertCSVStrDataToNumericTypes() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -307,7 +307,7 @@ func Test_averageHighLowCryptoPrices(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotAverage, err := averageHighLowCryptoPrices(tt.args.lowPrice, tt.args.highPrice)
+			gotAverage, err := NewCSVDataConverter().AverageHighLowCryptoPrices(tt.args.lowPrice, tt.args.highPrice)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("averageHighLowCryptoPrices() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -342,7 +342,7 @@ func Test_convertCSVStrToDate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotTime, err := convertCSVStrToDate(tt.args.strDate)
+			gotTime, err := NewCSVDataConverter().ConvertCSVStrToDate(tt.args.strDate)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("convertCSVStrToDate() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -3,10 +3,10 @@ module github.com/Diegoplas/2022Q2GO-Bootcamp
 go 1.18
 
 require (
-	github.com/golang/mock v1.6.0
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/spf13/viper v1.12.0
+	github.com/unrolled/render v1.4.1
 	github.com/wcharczuk/go-chart v2.0.1+incompatible
 	github.com/wcharczuk/go-chart/v2 v2.1.0
 )
