@@ -1,14 +1,34 @@
 package config
 
-import "github.com/spf13/viper"
+import (
+	"errors"
+	"fmt"
+	"log"
+
+	"github.com/spf13/viper"
+)
 
 const (
 	Port                          = ":8080"
-	Market                        = "USD"
 	CryptoNamesListPath           = "csvdata/cryptoCurrencyList.csv"
 	CryptoHistoricalValuesCSVPath = "csvdata/crypto-historical-prices.csv"
 	BTCHistoricalValuesCSVPath    = "csvdata/BTC-historical-prices.csv"
 )
+
+func MakeRequestURL(cryptoCode string) (url string, err error) {
+	configVars, err := LoadConfig(".")
+	if err != nil {
+		log.Println("cannot load config:", err)
+	}
+	if configVars.APIKey == "" {
+		return "", errors.New("please introduce use a valid API Key")
+	}
+
+	requestURL := fmt.Sprintf("https://www.alphavantage.co/query?function=DIGITAL_CURRENCY_DAILY&symbol=%s&market=USD&apikey=%s&datatype=csv",
+		cryptoCode, configVars.APIKey)
+
+	return requestURL, nil
+}
 
 type environmentVars struct {
 	APIKey string `mapstructure:"API_KEY"`

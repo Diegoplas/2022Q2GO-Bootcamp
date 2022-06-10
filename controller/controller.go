@@ -1,249 +1,113 @@
 package controller
 
 import (
-	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/Diegoplas/2022Q2GO-Bootcamp/config"
 	"github.com/Diegoplas/2022Q2GO-Bootcamp/model"
 
 	"github.com/gorilla/mux"
 	"github.com/unrolled/render"
 )
 
-type HTTPClient interface {
-	Do(req *http.Request) (*http.Response, error)
+type DataGraphersUseCases interface {
+	GraphBTCValues(inputDayStr string) (graphURL string, err error)
+	GraphCryptoRecords(requestedCryptoCode, requestedDays string) (cryptoGraphURL string, err error)
 }
 
-var (
-	Client HTTPClient
-)
-
-func init() {
-	Client = &http.Client{}
+type DataGrapher struct {
 }
 
-type DataGetter interface {
+func NewDataGrapher() DataGrapher {
+	return DataGrapher{}
+}
+
+type DataGetterUseCases interface {
 	CreateCSVFile() error
 	CopyResponseToCSVFile(resp *http.Response) error
+	GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]string) (records model.CryptoRecordValues, dataError error)
 	ExtractRowsFromCSVFile(csvFileName string) (rows [][]string, err error)
 	ExtractDataFromBTCCSVRows(requestedDay int, csvRows [][]string) (records model.CryptoRecordValues, dataError error)
-	GetDataFromHistoricalValueRows(requestedDays int, historicalValueRows [][]string) (records model.CryptoRecordValues, dataError error)
 }
 
-type DataCoverter interface {
-	ConvertCSVStrToDate(strDate string) (time.Time, error)
+type CoverterUseCases interface {
 	AverageHighLowCryptoPrices(lowPrice, highPrice string) (float64, error)
+	ConvertCSVStrToDate(strDate string) (time.Time, error)
 	ConvertCSVStrDataToNumericTypes(idStr, priceStr string) (int, float64, error)
 }
-
-type GraphMaker interface {
+type GraphUseCases interface {
 	MakeGraph(records model.CryptoRecordValues, cryptoCode, days string) string
 }
-
-type DataHandlerAndGrapher struct {
-	getter    DataGetter
-	grapher   GraphMaker
-	converter DataCoverter
+type WorkerPoolUseCases interface {
+	CSVWorkerPoolRowExtractor(oddOrEven string, items, itemsPerWorker int) ([]model.CryptoPricesAndDates, error)
+	Worker(readChan chan []string, writeChan chan model.CryptoPricesAndDates, itemsPerWorker int)
+}
+type UseCasesHandler struct {
+	dataGetterUseCases   DataGetterUseCases
+	graphUseCases        GraphUseCases
+	converterUseCases    CoverterUseCases
+	workerPoolUseCases   WorkerPoolUseCases
+	dataGraphersUseCases DataGraphersUseCases
 }
 
-func NewDataGetter(getter DataGetter, grapher GraphMaker, converter DataCoverter) DataHandlerAndGrapher {
-	return DataHandlerAndGrapher{
-		getter:    getter,
-		grapher:   grapher,
-		converter: converter,
+func NewUseCasesHandler(dataGetterUseCases DataGetterUseCases, graphUseCases GraphUseCases,
+	converterUseCases CoverterUseCases, workerPoolUseCases WorkerPoolUseCases, dataGraphersUseCases DataGraphersUseCases) UseCasesHandler {
+	return UseCasesHandler{
+		dataGetterUseCases:   dataGetterUseCases,
+		graphUseCases:        graphUseCases,
+		converterUseCases:    converterUseCases,
+		workerPoolUseCases:   workerPoolUseCases,
+		dataGraphersUseCases: dataGraphersUseCases,
 	}
 }
 
 // GraphCryptoRecords - Gets the historic data from http request, save it into a CSV file and graph of it.
-func (dhg DataHandlerAndGrapher) GraphCryptoRecords(w http.ResponseWriter, r *http.Request) {
-	// Load config variables
-	configVars, err := config.LoadConfig(".")
-	if err != nil {
-		log.Println("cannot load config:", err)
-	}
-	if configVars.APIKey == "" {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("Please introduce use a valid API Key"))
-		return
-	}
-	// Validate Input Crypto Code
+func (uch UseCasesHandler) GraphCryptoRecordsHandler(w http.ResponseWriter, r *http.Request) {
+	// Load request parameters.
 	rawInputCryptoCode := mux.Vars(r)["cryptoCode"]
-	cryptoCodesRows, err := dhg.getter.ExtractRowsFromCSVFile(config.CryptoNamesListPath)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(string(err.Error())))
-		return
-	}
-	cryptoCode, err := validateInputCryptoCode(rawInputCryptoCode, cryptoCodesRows)
-	if err != nil {
+	if rawInputCryptoCode == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(string(err.Error())))
+		w.Write([]byte("missing parameter. Please input the desired Crypto Code"))
 		return
 	}
-	// Validate Input Num of Days to retrieve
 	rawInputDays := mux.Vars(r)["days"]
-	inputDays, err := validateInputDays(rawInputDays)
-	if err != nil {
+	if rawInputDays == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(string(err.Error())))
+		w.Write([]byte("missing parameter. Please input the desired number of days"))
 		return
 	}
-	// Get data from request
-	requestURL := fmt.Sprintf("https://www.alphavantage.co/query?function=DIGITAL_CURRENCY_DAILY&symbol=%s&market=%s&apikey=%s&datatype=csv",
-		cryptoCode, config.Market, configVars.APIKey)
-	// Get the data
-	response, err := cryptoHystoricalValuesRequest(requestURL)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(string(err.Error())))
-		return
-	}
-	err = dhg.getter.CopyResponseToCSVFile(response)
+	graphName, err := uch.dataGraphersUseCases.GraphCryptoRecords(rawInputCryptoCode, rawInputDays)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(string(err.Error())))
 		return
 	}
-	// Use historical values data
-	extractedHistoricalValuesRows, err := dhg.getter.ExtractRowsFromCSVFile(config.CryptoHistoricalValuesCSVPath)
-	//fmt.Println(extractedHistoricalValuesRows)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(string(err.Error())))
-		return
-	}
-	historicalValues, err := dhg.getter.GetDataFromHistoricalValueRows(inputDays, extractedHistoricalValuesRows)
-	fmt.Println(historicalValues)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(string(err.Error())))
-		return
-	}
-	graphName := dhg.grapher.MakeGraph(historicalValues, cryptoCode, rawInputDays)
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("Data successfully graphed in file: %s", graphName)))
+	w.Write([]byte(fmt.Sprintf("%s Data successfully graphed in file: %s", rawInputCryptoCode, graphName)))
 }
 
 // GraphBTCValues - Gets the historic data from the CSV file and graph of it.
-func (dhg DataHandlerAndGrapher) GraphBTCValues(w http.ResponseWriter, r *http.Request) {
-	BitcoinCode := "BTC"
+func (uch UseCasesHandler) GraphBTCValuesHandler(w http.ResponseWriter, r *http.Request) {
 	rawInputDay := mux.Vars(r)["day"]
-	inputDay, err := validateInputDays(rawInputDay)
-	if err != nil {
+	if rawInputDay == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(string(err.Error())))
+		w.Write([]byte("missing parameter. Please input the desired number of days"))
 		return
 	}
-	extractedBTCHistoricalValuesRows, err := dhg.getter.ExtractRowsFromCSVFile(config.BTCHistoricalValuesCSVPath)
+	graphName, err := uch.dataGraphersUseCases.GraphBTCValues(rawInputDay)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(string(err.Error())))
 		return
 	}
-	BTCRecordValues, err := dhg.getter.ExtractDataFromBTCCSVRows(inputDay, extractedBTCHistoricalValuesRows)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(string(err.Error())))
-		return
-	}
-	// If the requested day exceeds the number of records on the CSV file, use the latest day.
-	if inputDay > len(extractedBTCHistoricalValuesRows) {
-		rawInputDay = strconv.Itoa(len(extractedBTCHistoricalValuesRows))
-	}
-	graphName := dhg.grapher.MakeGraph(BTCRecordValues, BitcoinCode, rawInputDay)
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(fmt.Sprintf("Data successfully graphed in file: %s", graphName)))
+	w.Write([]byte(fmt.Sprintf("BTC Data successfully graphed in file: %s", graphName)))
 }
 
-// cryptoHystoricalValuesRequest - make http request.
-func cryptoHystoricalValuesRequest(reqUrl string) (resp *http.Response, err error) {
-	request, err := http.NewRequest(http.MethodGet, reqUrl, nil)
-	if err != nil {
-		log.Printf("The HTTP request failed with error %s\n", err)
-		return nil, errors.New("request error")
-	}
-	response, err := Client.Do(request)
-	if err != nil {
-		if err != nil {
-			log.Printf("error on the external api request: %v\n", err.Error())
-			return nil, errors.New("response error")
-		}
-	}
-	return response, nil
-}
-
-//validateInputDays - Validates the input is a valid positiv number.
-func validateInputDays(inputDays string) (int, error) {
-	inputDay, err := strconv.Atoi(inputDays)
-	if err != nil {
-		log.Println("error converting input string to int: ", err)
-		err = errors.New("please insert a valid number")
-		return 0, err
-	}
-	if inputDay < 1 || inputDay > 1001 {
-		err = errors.New("the number of days you want the information about must be more than zero and less than 1001")
-		return 0, err
-	}
-	return inputDay, nil
-}
-
-//validateInputCryptoName - Validates the input crypto name is contained in the available cryptos.
-func validateInputCryptoCode(cryptoCode string, codesRows [][]string) (string, error) {
-	cryptoCode = strings.ToUpper(cryptoCode)
-	lenRows := len(codesRows)
-	for idx := 1; idx < lenRows; idx++ {
-		if cryptoCode == codesRows[idx][0] {
-			return cryptoCode, nil
-		}
-	}
-	return "", errors.New("please use a valid Crypto Currency code of cryptoCurrencyList.csv")
-}
-
-func (dhg DataHandlerAndGrapher) worker(readChan chan []string, writeChan chan model.CryptoPricesAndDates, itemsPerWorker int) {
-	worksCount := 0
-	for {
-		select {
-		case row, ok := <-readChan:
-			if !ok {
-				return
-			}
-
-			strDate, strHighPrice, strLowPrice := row[0], row[2], row[3]
-			// format the received row.
-			date, err := dhg.converter.ConvertCSVStrToDate(strDate)
-			if err != nil {
-				log.Println(err)
-				break
-			}
-			averagePrice, err := dhg.converter.AverageHighLowCryptoPrices(strHighPrice, strLowPrice)
-			if err != nil {
-				log.Println(err)
-				break
-			}
-
-			cryptoRecordsInfo := model.CryptoPricesAndDates{
-				Date:  date,
-				Price: averagePrice,
-			}
-
-			writeChan <- cryptoRecordsInfo
-			worksCount += 1
-		}
-		// if worker completes it's corresponding items, the worker must rest.
-		if worksCount == itemsPerWorker {
-			break
-		}
-	}
-}
-
-func (dhg DataHandlerAndGrapher) WorkerPoolHandler(w http.ResponseWriter, r *http.Request) {
+func (uch UseCasesHandler) WorkerPoolHandler(w http.ResponseWriter, r *http.Request) {
 	// Validating input parameters.
 	oddOrEven := strings.ToLower(mux.Vars(r)["odd_or_even"])
 	if (oddOrEven != "odd" && oddOrEven != "even") || oddOrEven == "" {
@@ -263,65 +127,11 @@ func (dhg DataHandlerAndGrapher) WorkerPoolHandler(w http.ResponseWriter, r *htt
 		w.Write([]byte("items per worker parameter should be a positive number"))
 		return
 	}
-	if itemsPerWorker > items {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("number of items should be bigger than number of items per worker"))
+	workerResponse, err := uch.workerPoolUseCases.CSVWorkerPoolRowExtractor(oddOrEven, items, itemsPerWorker)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(string(err.Error())))
 		return
 	}
-
-	// Get the number of workers needed. If division is not exact, add another worker.
-	numOfWorkers := items / itemsPerWorker
-	if itemsRemainder := items % itemsPerWorker; itemsRemainder != 0 {
-		numOfWorkers += 1
-	}
-
-	// Extract rows from CSV File
-	csvRows, err := dhg.getter.ExtractRowsFromCSVFile(config.CryptoHistoricalValuesCSVPath)
-	if itemsPerWorker > items {
-		itemsPerWorkerError := errors.New("please run /usd-crypto-conversion/{cryptoCode}/{days} endpoint first to generate CSV file")
-		render.New().JSON(w, http.StatusInternalServerError, itemsPerWorkerError)
-		return
-	}
-
-	// Create channels
-	inputCh := make(chan []string)
-	outputCh := make(chan model.CryptoPricesAndDates, items)
-
-	// Waitgroup for Synchronization
-	var waitGroup sync.WaitGroup
-
-	// Declare the workers and send them their taks
-	for workerID := 1; workerID <= numOfWorkers; workerID++ {
-		waitGroup.Add(1)
-		go func() {
-			defer waitGroup.Done()
-			dhg.worker(inputCh, outputCh, itemsPerWorker)
-		}()
-	}
-
-	// Need to retrieve twice the requested items, because only will be getting half of them selecting odd/even
-	totalItems := items * 2
-
-	go func() {
-		for idx := 1; idx <= totalItems; idx++ {
-			if oddOrEven == "even" && (idx%2 == 0) {
-				inputCh <- csvRows[idx]
-			} else if oddOrEven == "odd" && (idx%2 == 1) {
-				inputCh <- csvRows[idx]
-			}
-		}
-		close(inputCh)
-	}()
-
-	// Wait workers to finish tasks
-	waitGroup.Wait()
-	close(outputCh)
-
-	response := []model.CryptoPricesAndDates{}
-
-	for requestedDatesAndPrices := range outputCh {
-		fmt.Println(requestedDatesAndPrices)
-		response = append(response, requestedDatesAndPrices)
-	}
-	render.New().JSON(w, http.StatusOK, &response)
+	render.New().JSON(w, http.StatusOK, &workerResponse)
 }

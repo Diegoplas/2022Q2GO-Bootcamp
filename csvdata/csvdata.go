@@ -36,6 +36,7 @@ type CSVDataConverter struct {
 func NewCSVDataConverter() CSVDataConverter {
 	return CSVDataConverter{}
 }
+
 func (csvdh CSVDataHandler) CreateCSVFile() error {
 	// Create the file
 	_, err := os.Create(config.CryptoHistoricalValuesCSVPath)
