@@ -18,9 +18,11 @@ type DataGraphersUseCases interface {
 	GraphCryptoRecords(requestedCryptoCode, requestedDays string) (cryptoGraphURL string, err error)
 }
 
+// CHECK ::::
 type DataGrapher struct {
 }
 
+// CHECK ::::
 func NewDataGrapher() DataGrapher {
 	return DataGrapher{}
 }
@@ -64,7 +66,7 @@ func NewUseCasesHandler(dataGetterUseCases DataGetterUseCases, graphUseCases Gra
 	}
 }
 
-// GraphCryptoRecords - Gets the historic data from http request, save it into a CSV file and graph of it.
+// GraphCryptoRecordsHandler - Handles the request for graphing and saving historical crypto prices.
 func (uch UseCasesHandler) GraphCryptoRecordsHandler(w http.ResponseWriter, r *http.Request) {
 	// Load request parameters.
 	rawInputCryptoCode := mux.Vars(r)["cryptoCode"]
@@ -89,7 +91,7 @@ func (uch UseCasesHandler) GraphCryptoRecordsHandler(w http.ResponseWriter, r *h
 	w.Write([]byte(fmt.Sprintf("%s Data successfully graphed in file: %s", rawInputCryptoCode, graphName)))
 }
 
-// GraphBTCValues - Gets the historic data from the CSV file and graph of it.
+// GraphBTCValuesHandler - Handles the request for graphing historical BTC prices from an existing CSV file.
 func (uch UseCasesHandler) GraphBTCValuesHandler(w http.ResponseWriter, r *http.Request) {
 	rawInputDay := mux.Vars(r)["day"]
 	if rawInputDay == "" {
@@ -107,6 +109,7 @@ func (uch UseCasesHandler) GraphBTCValuesHandler(w http.ResponseWriter, r *http.
 	w.Write([]byte(fmt.Sprintf("BTC Data successfully graphed in file: %s", graphName)))
 }
 
+// WorkerPoolHandler - Handles extracting concurrently information from a CSV file.
 func (uch UseCasesHandler) WorkerPoolHandler(w http.ResponseWriter, r *http.Request) {
 	// Validating input parameters.
 	oddOrEven := strings.ToLower(mux.Vars(r)["odd_or_even"])

@@ -26,6 +26,10 @@ func init() {
 	Client = &http.Client{}
 }
 
+type DataGraphers interface {
+	GraphBTCValues(inputDayStr string) (graphURL string, err error)
+	GraphCryptoRecords(requestedCryptoCode, requestedDays string) (cryptoGraphURL string, err error)
+}
 type DataGetter interface {
 	CreateCSVFile() error
 	CopyResponseToCSVFile(resp *http.Response) error
@@ -49,9 +53,11 @@ type WorkerPoolManager interface {
 	Worker(readChan chan []string, writeChan chan model.CryptoPricesAndDates, itemsPerWorker int)
 }
 
+// CHECK ::::
 type WorkPool struct {
 }
 
+// CHECK ::::
 func NewWorkerPooler() WorkPool {
 	return WorkPool{}
 }
@@ -63,13 +69,21 @@ type DataHandlerAndGrapher struct {
 	workpool  WorkerPoolManager
 }
 
-func NewDataGetter(getter DataGetter, grapher GraphMaker, converter DataCoverter, workpool WorkerPoolManager) DataHandlerAndGrapher {
+func NewDataGetter(getter DataGetter, grapher GraphMaker, converter DataCoverter,
+	workpool WorkerPoolManager) DataHandlerAndGrapher {
 	return DataHandlerAndGrapher{
 		getter:    getter,
 		grapher:   grapher,
 		converter: converter,
 		workpool:  workpool,
 	}
+}
+
+type DataGrapher struct {
+}
+
+func NewDataGrapher() DataGrapher {
+	return DataGrapher{}
 }
 
 // GraphCryptoRecords - Gets the historic data from http request, save it into a CSV file and graph of it.
